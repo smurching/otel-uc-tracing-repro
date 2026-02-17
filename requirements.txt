@@ -1,0 +1,10 @@
+# Requirements for OTel tracing reproduction scripts
+
+# For script 1 (manual tables)
+opentelemetry-api>=1.20.0
+opentelemetry-sdk>=1.20.0
+opentelemetry-exporter-otlp-proto-http>=1.20.0
+databricks-sdk>=0.18.0
+
+# Additional for script 2 (MLflow API)
+mlflow[databricks]>=3.9.0
