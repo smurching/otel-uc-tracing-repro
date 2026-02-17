@@ -16,116 +16,79 @@ Traces are **not appearing in Unity Catalog** even with:
 
 ---
 
-## 📊 Two Reproduction Scripts
+## 📊 Minimal Reproduction Scripts
 
-### Script 1: Manual Table Creation (Recommended First)
+Both scripts are **concise** (~120-280 lines) with clear assertions that **fail** when traces don't appear.
 
-**File:** `repro-otel-tracing-issue.py`
+### Script 1: Manual Table Creation
+
+**File:** `repro-otel-tracing-issue.py` (~280 lines)
 
 Creates UC tables manually with SQL, demonstrates backend storage issues.
 
 ```bash
-# Install dependencies
-pip install opentelemetry-api opentelemetry-sdk \
-            opentelemetry-exporter-otlp-proto-http \
-            databricks-sdk
-
-# Authenticate
+pip install -r requirements.txt
 databricks auth login --profile dogfood
-
-# Run
 python repro-otel-tracing-issue.py
 ```
 
-**What it shows:**
-- ✅ Tables created with full OTel v1 schema
-- ✅ Tables are queryable
-- ✅ OTel export completes without client-side errors
-- ❌ **Traces don't appear** → S3 "NOT_FOUND" errors when querying
+**Result:** `AssertionError: Traces not found in Unity Catalog table`
+- ✅ Tables queryable
+- ❌ Traces don't appear → S3 "NOT_FOUND" errors
 
 **Conclusion:** Backend OTel collector cannot write to S3 storage.
 
 ---
 
-### Script 2: MLflow API Creation
+### Script 2: MLflow API Creation (Simpler)
 
-**File:** `repro-otel-with-mlflow-api.py`
+**File:** `repro-otel-with-mlflow-api.py` (~120 lines)
 
 Uses official `set_experiment_trace_location()` API, demonstrates MLflow API issues.
 
 ```bash
-# Install dependencies (includes MLflow)
-pip install 'mlflow[databricks]>=3.9.0' \
-            opentelemetry-api opentelemetry-sdk \
-            opentelemetry-exporter-otlp-proto-http \
-            databricks-sdk
-
-# Authenticate
+pip install -r requirements.txt
 databricks auth login --profile dogfood
-
-# Run
 python repro-otel-with-mlflow-api.py
 ```
 
-**What it shows:**
-- ✅ MLflow API creates tables (eventually)
-- ❌ **API times out** after 60s
-- ❌ **Tables have schema errors** → "Incomplete complex type"
-- ❌ **Tables not queryable** despite having correct fields
+**Result:** `AssertionError: Traces not found in Unity Catalog table`
+- ⚠️ API may timeout (but tables still created)
+- ❌ Tables have "Incomplete complex type" → not queryable
+- ❌ Even if queryable, traces don't appear
 
-**Conclusion:** MLflow public preview API has bugs.
-
----
-
-## 🔍 What Both Scripts Test
-
-1. **Authentication**: OAuth tokens from `databricks auth token` (PAT tokens cause 401s)
-2. **Table Schema**: Complete OTel v1 schema with all required fields
-3. **OTel Export**: Uses official Python OpenTelemetry SDK
-4. **Verification**: Queries UC tables to check if traces appeared
+**Conclusion:** MLflow API creates broken tables + backend storage issue.
 
 ---
 
-## ✅ Expected Results (When Working)
+## 🔍 What Scripts Test
 
-```
-✅ Got OAuth token
-✅ Table created/verified
-✅ OTel exporter configured
-✅ Span created and exported
-✅ Flush completed
-✅ Trace found in UC table → SUCCESS!
-```
+1. **Setup**: Get OAuth token, create/verify UC tables
+2. **Export**: Send test span via OTel SDK
+3. **Verify**: Query UC table and **assert trace exists**
+4. **Result**: `AssertionError` when traces don't appear
 
 ---
 
-## ❌ Actual Results (Current Behavior)
+## ✅ Expected (When Working)
 
-### Script 1 Output:
-```
-✅ Got OAuth token (expires in 3600s)
-✅ Table created: main.agent_traces.otel_repro_test
-✅ OTel exporter configured
-✅ Span created: otel-repro-test-span
-✅ Flush completed (no client-side errors)
-⏳ Waiting 15 seconds for OTel collector to write to UC...
-❌ Query failed: NOT_FOUND: Not Found () at file-scan-node-base.cc:455
+```python
+✓ Setup complete
+✓ Trace sent
+✓ SUCCESS: Trace found in UC table!
 ```
 
-**Translation:** Table exists in metastore, but OTel collector can't write data files to S3.
+## ❌ Actual (Current Behavior)
 
-### Script 2 Output:
-```
-✅ Got OAuth token
-✅ Created experiment
-⚠️  API call timed out after 60s
-✅ Table exists despite timeout
-✅ All required fields present
-✅ Flush completed (no client-side errors)
-❌ Query failed: Incomplete complex type
-```
+```python
+✓ Setup complete
+✓ Trace sent
+✗ FAILED: Traces not found in UC table
+   Query status: FAILED
+   Error: NOT_FOUND: Not Found () / Incomplete complex type
 
-**Translation:** MLflow API creates tables but they have schema corruption.
+AssertionError: Traces not found in Unity Catalog table
+```
 
 ---
 
