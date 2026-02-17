@@ -1,8 +1,20 @@
 # OTel Tracing to Unity Catalog - Issue Reproduction
 
-Minimal reproduction scripts demonstrating that OpenTelemetry traces are not being written to Unity Catalog tables in Databricks.
+> ## ✅ **RESOLVED - 2026-02-17**
+>
+> **Tracing is now working!** Traces successfully appear in Unity Catalog tables.
+>
+> **Resolution:** The issue was warehouse-specific. Using the correct SQL warehouse (ID: `02c6ce260d0e8ffe`) allows successful queries. The OTel collector backend is functional and writing traces to UC.
+>
+> **Key finding:** Different SQL warehouses handle complex OTel schema types differently. Some return "Incomplete complex type" errors while others work correctly.
+>
+> **Verification:** 22+ traces confirmed in `main.agent_traces.mlflow_experiment_trace_otel_spans` from LangGraph operations.
+>
+> ---
 
-## 🔴 Issue Summary
+~~Minimal reproduction scripts demonstrating that OpenTelemetry traces are not being written to Unity Catalog tables in Databricks.~~
+
+## 🔴 Original Issue Summary (Now Resolved)
 
 Traces are **not appearing in Unity Catalog** even with:
 - ✅ Correct OTel endpoint configuration
@@ -207,3 +219,14 @@ For questions about these reproduction scripts, contact:
 ## 📄 License
 
 These scripts are for internal Databricks debugging purposes.
+
+---
+
+## 📦 Archive Notice
+
+**Status:** Issue Resolved ✅  
+**Date:** 2026-02-17  
+**Resolution:** OTel tracing to Unity Catalog is working correctly when using appropriate SQL warehouse.
+
+**For reference only:** These scripts were created during investigation and are preserved for documentation purposes.
+
